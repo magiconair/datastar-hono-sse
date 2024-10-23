@@ -43,12 +43,21 @@ app.get('/', (c) => {
     return c.html(indexPage());
 });
 
-function sseMessage(frag: string, selector?: string, mergeType?: string): SSEMessage {
+interface sseMessageArgs {
+    fragment: string;
+    id?: string;
+    selector?: string;
+    mergeType?: string;
+    disableViewTransitions?: boolean;
+}
+
+function sseMessage(args: sseMessageArgs): SSEMessage {
     let data = '';
-    if (selector && selector.length) data += `selector ${selector}\n`;
-    if (mergeType && mergeType.length) data += `merge ${mergeType}\n`;
-    data += `fragment ${minify(frag, { collapseWhitespace: true })}`;
-    return { event: 'datastar-fragment', data: data };
+    if (args.selector && args.selector.length) data += `selector ${args.selector}\n`;
+    if (args.mergeType && args.mergeType.length) data += `merge ${args.mergeType}\n`;
+    if (args.disableViewTransitions && args.disableViewTransitions === true) data += `vt false\n`;
+    data += `fragment ${minify(args.fragment, { collapseWhitespace: true })}`;
+    return { event: 'datastar-fragment', data: data, id: args.id ? args.id : undefined };
 }
 
 app.put('/put', async (c) => {
@@ -59,7 +68,7 @@ app.put('/put', async (c) => {
         backendData.input = body.input;
         const output = `Your input: ${input}, is ${input.length} long.`;
         let frag = `<div id="output">${output}</div>`;
-        await stream.writeSSE(sseMessage(frag, '', 'morph'));
+        await stream.writeSSE(sseMessage({ fragment: frag, mergeType: 'morph' }));
         await stream.close();
     });
 });
@@ -68,10 +77,10 @@ app.get('/get', async (c) => {
     return streamSSE(c, async (stream) => {
         const output = `Backend State: ${JSON.stringify(backendData)}.`;
         let frag = `<div id="output2">${output}</div>`;
-        await stream.writeSSE(sseMessage(frag, '', 'morph'));
+        await stream.writeSSE(sseMessage({ fragment: frag, mergeType: 'morph' }));
 
         frag = `<div id="output3">Check this out!</div>;`;
-        await stream.writeSSE(sseMessage(frag, '', 'morph'));
+        await stream.writeSSE(sseMessage({ fragment: frag, selector: 'main', mergeType: 'prepend' }));
         await stream.close();
     });
 });
@@ -89,8 +98,8 @@ app.get('/feed', async (c) => {
         while (!stream.aborted) {
             const rand = randomBytes(8).toString('hex');
             const frag = `<span id="feed">${rand}</span>`;
-            await stream.writeSSE(sseMessage(frag, '', ''));
-            await stream.sleep(500);
+            await stream.writeSSE(sseMessage({ fragment: frag, disableViewTransitions: true }));
+            await stream.sleep(100);
         }
         console.log(sid, 'closed stream');
     });
