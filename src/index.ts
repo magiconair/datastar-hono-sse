@@ -15,11 +15,11 @@ const backendData = { input: '' };
 function indexPage() {
     const indexPage = html`<!doctype html><html>
       <head>
-        <title>Node/Express + Datastar Example</title>
+        <title>Bun/Node/Deno + Hono + SSE + Datastar Example</title>
         <script type="module" defer src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar"></script>
       </head>
       <body>
-        <h2>Node/Express + Datastar Example</h2>
+        <h2>Bun/Node/Deno + Hono + SSE + Datastar Example</h2>
         <main class="container" id="main" data-store='{ input: "", show: false }'>
         <input type="text" placeholder="Type here!" data-model="input" />
         <button data-on-click="$$put('/put')">Send State</button>

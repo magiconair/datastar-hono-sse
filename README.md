@@ -1,4 +1,4 @@
-# datastar-hono-sse
+# Bun/Node/Deno + Hono + SSE + Datastar Example
 
 Sample project from https://data-star.dev/examples/node ported
 to TypeScript and [Hono](https://hono.dev/).
