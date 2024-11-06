@@ -96,7 +96,7 @@ function fragmentMessagge(e: Fragment) {
     if (e.viewTransitions !== undefined) {
         data.push(`vt ${e.viewTransitions == 'on' ? 'true' : 'false'}`);
     }
-    if (e.minify !== undefined && !e.minify) {
+    if (!defaults.minify || (e.minify !== undefined && !e.minify)) {
         data.push(`fragment ${e.frag}`);
     } else {
         data.push(`fragment ${minify(e.frag, e.minifyOptions || defaults.minifyOptions)}`);
