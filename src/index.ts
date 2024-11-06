@@ -3,8 +3,7 @@ import { html } from 'hono/html';
 import { logger } from 'hono/logger';
 import { streamSSE } from 'hono/streaming';
 import { randomBytes } from 'node:crypto';
-import { DatastarResponse } from './datastar-hono';
-import { DatastarMessage } from './datastar';
+import { writeSSE } from './datastar-hono';
 
 const app = new Hono();
 
@@ -44,25 +43,26 @@ app.get('/', (c: Context) => {
 });
 
 app.put('/put', async (c: Context) => {
-    const body = await c.req.json();
-    const input = body.input;
-    console.log('/put', 'body', body);
-    backendData.input = body.input;
-    const output = `Your input: ${input}, is ${input.length} long.`;
-    const frag = `<div id="output">${output}</div>`;
-    return DatastarResponse(c, { type: 'fragment', frag: frag, mergeType: 'morph' });
+    return streamSSE(c, async (stream) => {
+        const body = await c.req.json();
+        const input = body.input;
+        console.log('/put', 'body', body);
+        backendData.input = body.input;
+        const output = `Your input: ${input}, is ${input.length} long.`;
+        const frag = `<div id="output">${output}</div>`;
+        await writeSSE(stream, { type: 'fragment', frag: frag, mergeType: 'morph' });
+        await stream.close();
+    });
 });
 
 app.get('/get', (c: Context) => {
     return streamSSE(c, async (stream) => {
         const output = `Backend State: ${JSON.stringify(backendData)}.`;
         let frag = `<div id="output2">${output}</div>`;
-        await stream.writeSSE(DatastarMessage({ type: 'fragment', frag: frag, mergeType: 'morph' }));
+        await writeSSE(stream, { type: 'fragment', frag: frag, mergeType: 'morph' });
 
         frag = `<div id="output3">Check this out!</div>;`;
-        await stream.writeSSE(
-            DatastarMessage({ type: 'fragment', frag: frag, cssSelector: 'main', mergeType: 'prepend' }),
-        );
+        await writeSSE(stream, { type: 'fragment', frag: frag, cssSelector: 'main', mergeType: 'prepend' });
         await stream.close();
     });
 });
@@ -79,7 +79,7 @@ app.get('/feed', (c: Context) => {
         while (!stream.aborted) {
             const rand = randomBytes(8).toString('hex');
             const frag = `<span id="feed">${rand}</span>`;
-            await stream.writeSSE(DatastarMessage({ type: 'fragment', frag: frag, viewTransitions: 'off' }));
+            await writeSSE(stream, { type: 'fragment', frag: frag, viewTransitions: 'off' });
             await stream.sleep(200);
         }
         console.log(sid, 'closed stream');
