@@ -1,12 +1,10 @@
 import { minify, Options as minifyOptions } from 'html-minifier';
 
 export function DatastarOptions(options: Options) {
-    // todo(fs): there is probably a better way to do this
-    // todo(fs): 'defaults = {...defaults, ...options}' merges undefined fields which is not what we want
-    if (options.logMode !== undefined) defaults.logMode = options.logMode;
-    if (options.viewTransitions !== undefined) defaults.viewTransitions = options.viewTransitions;
-    if (options.minify !== undefined) defaults.minify = options.minify;
-    if (options.minifyOptions !== undefined) defaults.minifyOptions = options.minifyOptions;
+    defaults = { ...defaults, ...options };
+    defaults.logMode = defaults.logMode || 'log';
+    defaults.minify = defaults.minify || false;
+    defaults.minifyOptions = defaults.minifyOptions || defaultMinifyOptions;
 }
 
 export type DatastarEvent = Fragment | Signal | Delete | Redirect | Console;
@@ -33,8 +31,9 @@ type LogMode = 'debug' | 'error' | 'info' | 'group' | 'groupEnd' | 'log' | 'warn
 type MergeType = 'morph' | 'inner' | 'outer' | 'prepend' | 'append' | 'before' | 'after' | 'upsert_attributes';
 type ViewTransition = 'on' | 'off';
 
+const defaultMinifyOptions = { collapseWhitespace: true, removeComments: true };
 let defaults: Options = {
-    viewTransitions: 'on',
+    viewTransitions: undefined,
     logMode: 'log',
     minify: true,
     minifyOptions: { collapseWhitespace: true, removeComments: true },
@@ -94,7 +93,9 @@ function fragmentMessagge(e: Fragment) {
         data.push(`merge ${e.mergeType}`);
     }
     if (e.viewTransitions !== undefined) {
-        data.push(`vt ${e.viewTransitions == 'on' ? 'true' : 'false'}`);
+        data.push(`vt ${e.viewTransitions === 'on' ? 'true' : 'false'}`);
+    } else if (defaults.viewTransitions !== undefined) {
+        data.push(`vt ${defaults.viewTransitions === 'on' ? 'true' : 'false'}`);
     }
     if (!defaults.minify || (e.minify !== undefined && !e.minify)) {
         data.push(`fragment ${e.frag}`);
