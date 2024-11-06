@@ -50,8 +50,7 @@ app.put('/put', async (c: Context) => {
         backendData.input = body.input;
         const output = `Your input: ${input}, is ${input.length} long.`;
         const frag = `<div id="output">${output}</div>`;
-        await writeSSE(stream, { type: 'fragment', frag: frag, mergeType: 'morph' });
-        await stream.close();
+        await writeSSE(stream, { type: 'fragment', frag: frag, mergeType: 'morph' }, 'close');
     });
 });
 
@@ -62,8 +61,7 @@ app.get('/get', (c: Context) => {
         await writeSSE(stream, { type: 'fragment', frag: frag, mergeType: 'morph' });
 
         frag = `<div id="output3">Check this out!</div>;`;
-        await writeSSE(stream, { type: 'fragment', frag: frag, cssSelector: 'main', mergeType: 'prepend' });
-        await stream.close();
+        await writeSSE(stream, { type: 'fragment', frag: frag, cssSelector: 'main', mergeType: 'prepend' }, 'close');
     });
 });
 
