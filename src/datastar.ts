@@ -9,18 +9,18 @@ export function DatastarOptions(options: Options) {
 
 export type DatastarEvent = Fragment | Signal | Delete | Redirect | Console;
 
-export function DatastarMessage(msg: DatastarEvent) {
-    switch (msg.type) {
+export function DatastarMessage(event: DatastarEvent) {
+    switch (event.type) {
         case 'fragment':
-            return fragmentMessagge(msg as Fragment);
+            return fragmentMessagge(event as Fragment);
         case 'signal':
-            return signalMessage(msg as Signal);
+            return signalMessage(event as Signal);
         case 'delete':
-            return deleteMessage(msg as Delete);
+            return deleteMessage(event as Delete);
         case 'redirect':
-            return redirectMessage(msg as Redirect);
+            return redirectMessage(event as Redirect);
         case 'console':
-            return consoleMessage(msg as Console);
+            return consoleMessage(event as Console);
         default:
             return { event: '', data: '' };
     }
