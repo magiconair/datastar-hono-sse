@@ -7,7 +7,7 @@ export function DatastarOptions(options: Options) {
     defaults.minifyOptions = defaults.minifyOptions || defaultMinifyOptions;
 }
 
-export type DatastarEvent = Fragment | Signal | Delete | Redirect | Console;
+export type DatastarEvent = Fragment | Signal | Remove | Redirect | Console;
 
 export function DatastarMessage(event: DatastarEvent) {
     switch (event.type) {
@@ -15,8 +15,8 @@ export function DatastarMessage(event: DatastarEvent) {
             return fragmentMessagge(event as Fragment);
         case 'signal':
             return signalMessage(event as Signal);
-        case 'delete':
-            return deleteMessage(event as Delete);
+        case 'remove':
+            return removeMessage(event as Remove);
         case 'redirect':
             return redirectMessage(event as Redirect);
         case 'console':
@@ -26,7 +26,7 @@ export function DatastarMessage(event: DatastarEvent) {
     }
 }
 
-type EventType = 'fragment' | 'signal' | 'delete' | 'redirect' | 'console';
+type EventType = 'fragment' | 'signal' | 'remove' | 'redirect' | 'console';
 type LogMode = 'debug' | 'error' | 'info' | 'group' | 'groupEnd' | 'log' | 'warn';
 type MergeType = 'morph' | 'inner' | 'outer' | 'prepend' | 'append' | 'before' | 'after' | 'upsert_attributes';
 type ViewTransition = 'on' | 'off';
@@ -55,6 +55,7 @@ type Fragment = Event & {
     type: 'fragment';
     frag: string;
     cssSelector?: string;
+    settleDuration?: number;
     viewTransitions?: ViewTransition;
     mergeType?: MergeType;
     minify?: boolean;
@@ -67,10 +68,11 @@ type Signal = Event & {
     onlyIfMissing?: boolean;
 };
 
-type Delete = Event & {
-    type: 'delete';
-    paths: string;
+type Remove = Event & {
+    type: 'remove';
     cssSelector?: string;
+    settleDuration?: number;
+    paths: string;
 };
 
 type Redirect = Event & {
@@ -92,6 +94,9 @@ function fragmentMessagge(e: Fragment) {
     if (e.mergeType && e.mergeType.length) {
         data.push(`merge ${e.mergeType}`);
     }
+    if (e.settleDuration && e.settleDuration > 0) {
+        data.push(`setlle ${e.settleDuration}`);
+    }
     if (e.viewTransitions !== undefined) {
         data.push(`vt ${e.viewTransitions === 'on' ? 'true' : 'false'}`);
     } else if (defaults.viewTransitions !== undefined) {
@@ -112,10 +117,13 @@ function signalMessage(e: Signal) {
     return { event: 'datastar-' + e.type, id: e.id, data: data.join('\n') };
 }
 
-function deleteMessage(e: Delete) {
+function removeMessage(e: Remove) {
     const data = [];
     if (e.cssSelector && e.cssSelector.length) {
         data.push(`selector ${e.cssSelector}`);
+    }
+    if (e.settleDuration && e.settleDuration > 0) {
+        data.push(`setlle ${e.settleDuration}`);
     }
     if (e.paths && e.paths.length) {
         data.push(`paths ${e.paths}`);
