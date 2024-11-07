@@ -1,25 +1,24 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { html } from 'hono/html';
 import { logger } from 'hono/logger';
-import { SSEMessage, streamSSE } from 'hono/streaming';
-import { minify } from 'html-minifier';
+import { streamSSE } from 'hono/streaming';
 import { randomBytes } from 'node:crypto';
-import { serve } from '@hono/node-server';
+import { DatastarStream, writeSSE } from './datastar-hono';
 
 const app = new Hono();
 
 app.use(logger()); // enable request logging
 
-const backendData = { input: '' };
+const backendData = { input: '', session: '' };
 
 function indexPage() {
     const indexPage = html`<!doctype html><html>
       <head>
-        <title>Bun/Node/Deno + Hono + SSE + Datastar Example</title>
+        <title>Datastar/Hono/TypeScript Example</title>
         <script type="module" defer src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar"></script>
       </head>
       <body>
-        <h2>Bun/Node/Deno + Hono + SSE + Datastar Example</h2>
+        <h2>Datastar/Hono/TypeScript Example</h2>
         <main class="container" id="main" data-store='{ input: "", show: false }'>
         <input type="text" placeholder="Type here!" data-model="input" />
         <button data-on-click="$$put('/put')">Send State</button>
@@ -39,82 +38,64 @@ function indexPage() {
     return indexPage;
 }
 
-app.get('/', (c) => {
+app.get('/', (c: Context) => {
     return c.html(indexPage());
 });
 
-interface sseMessageArgs {
-    fragment: string;
-    id?: string;
-    selector?: string;
-    mergeType?: string;
-    disableViewTransitions?: boolean;
-}
-
-function sseMessage(args: sseMessageArgs): SSEMessage {
-    let data = '';
-    if (args.selector && args.selector.length) data += `selector ${args.selector}\n`;
-    if (args.mergeType && args.mergeType.length) data += `merge ${args.mergeType}\n`;
-    if (args.disableViewTransitions && args.disableViewTransitions === true) data += `vt false\n`;
-    data += `fragment ${minify(args.fragment, { collapseWhitespace: true })}`;
-    return { event: 'datastar-fragment', data: data, id: args.id ? args.id : undefined };
-}
-
-app.put('/put', async (c) => {
-    return streamSSE(c, async (stream) => {
+app.put('/put', async (c: Context) => {
+    return streamSSE(c, async (raw) => {
+        const stream = new DatastarStream(raw);
         const body = await c.req.json();
         const input = body.input;
         console.log('/put', 'body', body);
         backendData.input = body.input;
         const output = `Your input: ${input}, is ${input.length} long.`;
-        let frag = `<div id="output">${output}</div>`;
-        await stream.writeSSE(sseMessage({ fragment: frag, mergeType: 'morph' }));
-        await stream.close();
+        const frag = `<div id="output">${output}</div>`;
+        await stream.writeEvent({ type: 'fragment', frag: frag, mergeType: 'morph' }, 'close');
     });
 });
 
-app.get('/get', async (c) => {
-    return streamSSE(c, async (stream) => {
+app.get('/get', (c: Context) => {
+    return streamSSE(c, async (raw) => {
+        const stream = new DatastarStream(raw);
         const output = `Backend State: ${JSON.stringify(backendData)}.`;
         let frag = `<div id="output2">${output}</div>`;
-        await stream.writeSSE(sseMessage({ fragment: frag, mergeType: 'morph' }));
+        await stream.writeEvent({ type: 'fragment', frag: frag, mergeType: 'morph' });
 
         frag = `<div id="output3">Check this out!</div>;`;
-        await stream.writeSSE(sseMessage({ fragment: frag, selector: 'main', mergeType: 'prepend' }));
-        await stream.close();
+        await stream.writeEvent({ type: 'fragment', frag: frag, cssSelector: 'main', mergeType: 'prepend' }, 'close');
     });
 });
 
 let streamId = 0;
-app.get('/feed', async (c) => {
-    const { signal } = c.req.raw;
-    return streamSSE(c, async (stream) => {
+app.get('/feed', (c: Context) => {
+    return streamSSE(c, async (raw) => {
+        const stream = new DatastarStream(raw);
         const sid = streamId++;
         console.log(sid, 'open stream');
-        signal.onabort = () => {
+        stream.onAbort(() => {
             stream.close();
             console.log(sid, 'abort signal received');
-        };
-        while (!stream.aborted) {
+        });
+        while (!raw.aborted) {
             const rand = randomBytes(8).toString('hex');
             const frag = `<span id="feed">${rand}</span>`;
-            await stream.writeSSE(sseMessage({ fragment: frag, disableViewTransitions: true }));
-            await stream.sleep(100);
+            await stream.writeEvent({ type: 'fragment', frag: frag, viewTransitions: 'off' });
+            await stream.sleep(200);
         }
         console.log(sid, 'closed stream');
     });
 });
 
-const ua = navigator.userAgent;
-const port = parseFloat(process.env.PORT || '3000');
-if (ua.startsWith('Bun/')) {
-    console.log(`Listening on http://localhost:${port}`);
-    Bun.serve({ fetch: app.fetch, port: port });
-} else if (ua.startsWith('Node.js/')) {
-    console.log(`Listening on http://localhost:${port}`);
-    serve({ fetch: app.fetch, port: port });
-} else if (ua.startsWith('Deno/')) {
-    Deno.serve(app.fetch);
-} else {
-    console.log(`invalid runtime: ${ua}`);
-}
+// bun
+export default app;
+
+// Deno
+// const port = parseFloat(process.env.PORT || '3000');
+// console.log(`Listening on http://localhost:${port}`);
+// Deno.serve({ port: port }, app.fetch);
+
+// Node
+// const port = parseFloat(process.env.PORT || '3000');
+// console.log(`Listening on http://localhost:${port}`);
+// serve({ fetch: app.fetch, port: port });

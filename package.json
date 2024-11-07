@@ -9,14 +9,12 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.2",
-    "async": "^3.2.6",
     "hono": "^4.6.4",
     "html-minifier": "^4.0.0",
     "mime": "^4.0.4"
   },
   "devDependencies": {
-    "@types/async": "^3.2.24",
-    "@types/bun": "latest",
+    "@types/bun": "^1.1.12",
     "@types/deno": "^2.0.0",
     "@types/html-minifier": "^4.0.5",
     "tsx": "^4.19.1",
