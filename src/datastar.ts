@@ -49,6 +49,7 @@ interface Options {
 interface Event {
     type: EventType;
     id?: string;
+    retry?: number;
 }
 
 type Fragment = Event & {

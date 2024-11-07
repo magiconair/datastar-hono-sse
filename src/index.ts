@@ -3,7 +3,7 @@ import { html } from 'hono/html';
 import { logger } from 'hono/logger';
 import { streamSSE } from 'hono/streaming';
 import { randomBytes } from 'node:crypto';
-import { writeSSE } from './datastar-hono';
+import { DatastarStream, writeSSE } from './datastar-hono';
 
 const app = new Hono();
 
@@ -43,41 +43,44 @@ app.get('/', (c: Context) => {
 });
 
 app.put('/put', async (c: Context) => {
-    return streamSSE(c, async (stream) => {
+    return streamSSE(c, async (raw) => {
+        const stream = new DatastarStream(raw);
         const body = await c.req.json();
         const input = body.input;
         console.log('/put', 'body', body);
         backendData.input = body.input;
         const output = `Your input: ${input}, is ${input.length} long.`;
         const frag = `<div id="output">${output}</div>`;
-        await writeSSE(stream, { type: 'fragment', frag: frag, mergeType: 'morph' }, 'close');
+        await stream.writeEvent({ type: 'fragment', frag: frag, mergeType: 'morph' }, 'close');
     });
 });
 
 app.get('/get', (c: Context) => {
-    return streamSSE(c, async (stream) => {
+    return streamSSE(c, async (raw) => {
+        const stream = new DatastarStream(raw);
         const output = `Backend State: ${JSON.stringify(backendData)}.`;
         let frag = `<div id="output2">${output}</div>`;
-        await writeSSE(stream, { type: 'fragment', frag: frag, mergeType: 'morph' });
+        await stream.writeEvent({ type: 'fragment', frag: frag, mergeType: 'morph' });
 
         frag = `<div id="output3">Check this out!</div>;`;
-        await writeSSE(stream, { type: 'fragment', frag: frag, cssSelector: 'main', mergeType: 'prepend' }, 'close');
+        await stream.writeEvent({ type: 'fragment', frag: frag, cssSelector: 'main', mergeType: 'prepend' }, 'close');
     });
 });
 
 let streamId = 0;
 app.get('/feed', (c: Context) => {
-    return streamSSE(c, async (stream) => {
+    return streamSSE(c, async (raw) => {
+        const stream = new DatastarStream(raw);
         const sid = streamId++;
         console.log(sid, 'open stream');
         stream.onAbort(() => {
             stream.close();
             console.log(sid, 'abort signal received');
         });
-        while (!stream.aborted) {
+        while (!raw.aborted) {
             const rand = randomBytes(8).toString('hex');
             const frag = `<span id="feed">${rand}</span>`;
-            await writeSSE(stream, { type: 'fragment', frag: frag, viewTransitions: 'off' });
+            await stream.writeEvent({ type: 'fragment', frag: frag, viewTransitions: 'off' });
             await stream.sleep(200);
         }
         console.log(sid, 'closed stream');
